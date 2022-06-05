@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Monitor Your Data As Well As Your Model</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Max Kuhn" />
+    <script src="libs/header-attrs-2.14/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="css/fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+class: title-slide, left, middle
+background-position: 85% 50%
+background-size: 30%
+background-color: #F9F8F3
+
+.pull-left[
+
+# Monitor Your Data As Well As Your Model
+
+### Max Kuhn
+### 2022 NYR Conference
+### https://topepo.github.io/2022-06-NYR/
+]
+
+.pull-right[
+&lt;img src="images/applicable.svg" width="80%" style="display: block; margin: auto;" /&gt;
+]
+
+
+
+
+---
+# You made an amazing model...
+
+You should definitely document:
+
+ - the process of optimizing the model
+ - the amount and nature of the data in the training/test sets
+ - performance characterization.
+ 
+Maybe using a [model card?](https://arxiv.org/abs/1810.03993) (&lt;tt&gt;https://arxiv.org/abs/1810.03993&lt;/tt&gt;) 
+
+
+---
+layout: false
+class: inverse, middle, center
+background-color: #FFFFFF
+
+&lt;img src="images/document.jpeg" width="50%" style="display: block; margin: auto;" /&gt;
+
+---
+# Model deployment and monitoring
+
+Then deploy the model with a completely amazing ModelOps tool...
+
+
+
+---
+# Model deployment and monitoring
+
+Then deploy the model with a completely amazing ModelOps tool...
+
+&lt;img src="images/vetiver.svg" width="20%" style="display: block; margin: auto;" /&gt;
+
+
+---
+# Model deployment and monitoring
+
+Then deploy the model with a completely amazing ModelOps tool...
+
+&lt;img src="images/vetiver.svg" width="20%" style="display: block; margin: auto;" /&gt;
+
+Then monitor performance as new data arrives (and are labelled).
+
+When the model drifts substantially from a baseline threshold, think about updating it with more recent data. 
+
+At the risk of being pedantic...
+
+---
+layout: false
+class: inverse, middle, center
+background-color: #FFFFFF
+
+# &lt;span style="color:Black;"&gt;There is &lt;span style="color:Red;"&gt;&lt;b&gt;no such thing&lt;/b&gt;&lt;/span&gt; as &lt;span style="color:Blue;"&gt;&lt;b&gt;model drift&lt;/b&gt;&lt;/span&gt;&lt;/span&gt;
+
+---
+# The model is static
+
+.pull-left[
+Once you have fit your model, it isn't changing (until you update it). 
+
+It is stuck in amber. 
+
+It's the _data_ that are changing and you probably don't have control over that. 
+
+When is it inappropriate to make predictions from your model? 
+
+When is the model **applicable** to the problem at hand?
+]
+.pull-right[
+&lt;img src="images/amber.jpeg" width="80%" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Applicability domains
+
+There is a whole field of techniques that attempt to quantify the amount of extrapolation (or poor interpolation) in a data set.
+
+* This is all relative to the training set. 
+
+This is similar to other fields such as anomaly detection, one-class classification models, and so on. 
+
+The primary tools find a way to 
+
+* measure the "data mainstream" of the training set
+* quantify how far a new data point is from the mainstream
+
+
+---
+# A sample of specific methods
+
+.pull-left[
+* Principal component analysis (PCA)
+
+* Isolation forests
+
+* Similarity metrics
+]
+.pull-right[
+* Hat matrix values
+
+* 1-class classification
+
+* Tukey's data depth
+]
+
+
+
+Applicability models are created on the training data and new data are scored. 
+
+Marly Gotti's `applicable` package is available to use these tools. 
+
+See Chapter 17 of _Tidy Models with R_ (https://www.tmwr.org/trust.html) for more details 
+
+---
+# Isolation forests
+
+How many random splits in a tree does it take to isolate a specific data point? 
+
+&lt;img src="images/isofor.jpeg" width="70%" style="display: block; margin: auto;" /&gt;
+
+Let's look at an example...
+
+
+(image from https://doi.org/10.1016/j.ress.2020.107170)
+
+---
+layout: false
+class: inverse, middle, center
+background-color: #FFFFFF
+
+&lt;img src="images/Penguins.png" width="80%" style="display: block; margin: auto;" /&gt;
+
+
+
+
+---
+# Shots on goal
+
+We'll use shot-by-shot data played by the Pittsburgh Penguins in seasons 2015-2018 (https://github.com/topepo/ongoal).
+
+We predict if a shot was on goal based on the shot, shooter, time, place, power plays, and team information. 
+
+A lightGBM boosted tree was optimized using a training set (n = 26,679) with a validation set (n = 6,670).
+
+The test set contained 8,893 shots. 
+
+Areas under the ROC curve:
+
+ * validation: 0.804
+ * test set:   0.798
+
+
+
+
+---
+# Isolation forest domain model
+
+.pull-left[
+We use an unsupervised tool called isolation forests to generate a score that measures "outlierness." 
+
+When re-predicting the training set, what does the _reference distribution_ look like? 
+
+If a new sample had an IF score of 0.35, 39% of the training set samples were less extreme.
+]
+.pull-right[
+&lt;img src="images/ref-dist-1.svg" width="100%" style="display: block; margin: auto;" /&gt;
+]
+
+
+
+---
+# Monitoring the 2018 season
+
+&lt;img src="images/season-2018-1.svg" width="70%" style="display: block; margin: auto;" /&gt;
+
+---
+# Scoring individual data points
+
+
+
+Most different from training set:
+
+* score: 99.879 - shot at minute 35 (power play) by sidney crosby (center) from 9 ft at an angle of 63 degrees
+* score: 99.878 - shot at minute 33 (power play) by anthony beauvillier (left_wing) from 10 ft at an angle of 6 degrees
+
+
+☝️ predictions may be suss, **warn the user**
+
+Least different from training set:
+
+* score: 0.516 - shot at minute 39 (short-handed) by madison bowey (defenseman) from 25 ft at an angle of 21 degrees
+
+---
+# Learning more
+
+* [google scholar](https://scholar.google.com/scholar?hl=en&amp;as_sdt=0%2C7&amp;q=%22applicability+domain%22&amp;btnG=)
+
+* Netzeva et al (2005) doi:10.1177/026119290503300209 - good overview circa 2005
+
+* Gadaleta et al (2016) doi:10.4018/IJQSPR.2016010102 - another review
+
+
+
+---
+layout: false
+class: inverse, middle, center
+background-color: #FFFFFF
+
+
+# &lt;span style="color:Black;"&gt;Thanks!&lt;/span&gt;
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"slideNumberFormat": "<div class=\"progress-bar-container\">\n  <div class=\"progress-bar\" style=\"width: calc(%current% / %total% * 100%);\">\n  </div>\n</div>\n",
+"highlightLanguage": ["r", "css", "yaml"],
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
